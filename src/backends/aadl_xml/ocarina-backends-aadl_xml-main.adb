@@ -169,6 +169,8 @@ package body Ocarina.Backends.AADL_XML.Main is
       Components_Node     : Node_Id;
       Property_Value_Node : Node_Id;
       AADL_Property_Value : Node_Id;
+      Connections_Node    : Node_Id;
+      Connection_Node     : Node_Id;
 
    begin
       if Category = CC_System then
@@ -311,6 +313,65 @@ package body Ocarina.Backends.AADL_XML.Main is
       Current_XML_Node := Subcomponents_Node;
       Visit_Subcomponents_Of (E);
       Current_XML_Node := Old_XML_Node;
+
+
+      --  Connections
+      
+      Connections_Node := Make_XML_Node ("connections");
+      Append_Node_To_List (Connections_Node, XTN.Subitems (N));
+
+      if Present (Connections (E)) then
+         F := First_Node (Connections (E));
+         while Present (F) loop
+            Connection_Node := Make_XML_Node ("connection");
+
+            --  Identifier
+
+            Append_Node_To_List
+              (Make_Assignement
+                 (Make_Defining_Identifier (Get_String_Name ("identifier")),
+                  Make_Defining_Identifier (Display_Name (Identifier (F)))),
+               XTN.Items (Connection_Node));
+
+	    --  Source and Destination
+
+            declare
+	       Source_Full_Name      : Name_Id;
+	       Destination_Full_Name : Name_Id;
+	       Port_Name             : Name_Id;
+            begin
+	       Source_Full_Name := Display_Name (Identifier (Item (First_Node (Path (Source (F))))));
+	       Destination_Full_Name := Display_Name (Identifier (Item (First_Node (Path (Destination (F))))));
+
+               if Present (Next_Node (First_Node (Path (Source (F))))) then
+	           Port_Name := Name (Identifier (Item (Next_Node (First_Node (Path (Source (F)))))));
+		   Port_Name := Add_Prefix_To_Name (".", Port_Name);
+		   Source_Full_Name := Add_Suffix_To_Name (Get_Name_String (Port_Name), Source_Full_Name);
+	       end if;
+
+               if Present (Next_Node (First_Node (Path (Destination (F))))) then
+                   Port_Name := Name (Identifier (Item (Next_Node (First_Node (Path (Destination (F)))))));
+		   Port_Name := Add_Prefix_To_Name (".", Port_Name);
+                   Destination_Full_Name := Add_Suffix_To_Name (Get_Name_String (Port_Name), Destination_Full_Name);
+               end if;
+
+               Append_Node_To_List
+                 (Make_Assignement
+                    (Make_Defining_Identifier (Get_String_Name ("source")),
+                     Make_Defining_Identifier (Source_Full_Name)),
+                  XTN.Items (Connection_Node));
+
+               Append_Node_To_List
+                 (Make_Assignement
+                    (Make_Defining_Identifier (Get_String_Name ("destination")),
+                     Make_Defining_Identifier (Destination_Full_Name)),
+                  XTN.Items (Connection_Node));
+	    end;
+
+	    Append_Node_To_List (Connection_Node, XTN.Subitems (Connections_Node));
+            F := Next_Node (F);
+         end loop;
+      end if;
 
       --  Properties
 
